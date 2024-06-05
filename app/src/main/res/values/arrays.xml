@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="data_types">
+        <item>INTEGER</item>
+        <item>TEXT</item>
+        <item>REAL</item>
+        <item>BLOB</item>
+        <!-- Add more data types as needed -->
+    </string-array>
+</resources>
