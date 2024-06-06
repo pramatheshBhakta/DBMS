@@ -1,6 +1,7 @@
 package com.example.dbms;
 
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -9,6 +10,7 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -22,10 +24,12 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-public class TableActivity extends AppCompatActivity {
+public class TableActivity extends AppCompatActivity implements TableAdapter.OnTableClickListener {
 
     private RecyclerView recyclerViewTables;
+    private TextView dbname;
     private TableAdapter tableAdapter;
     private List<TableItem> tableList = new ArrayList<>();
     private AppDatabase appDatabase;
@@ -40,9 +44,13 @@ public class TableActivity extends AppCompatActivity {
         recyclerViewTables.setLayoutManager(new LinearLayoutManager(this));
         tableAdapter = new TableAdapter(tableList);
         recyclerViewTables.setAdapter(tableAdapter);
+        dbname = findViewById(R.id.textViewDatabaseName);
+
 
         // Get the selected database name from the intent
         databaseName = getIntent().getStringExtra("databaseName");
+        dbname.setText(databaseName.toUpperCase(Locale.ROOT) + "'S DATABASE");
+
 
         // Initialize Room database
         appDatabase = AppDatabase.getDatabase(this);
@@ -67,6 +75,9 @@ public class TableActivity extends AppCompatActivity {
                 showAddTableDialog();
             }
         });
+
+        // Set the click listener for table items
+        tableAdapter.setOnTableClickListener(this);
     }
 
     private void showAddTableDialog() {
@@ -101,6 +112,19 @@ public class TableActivity extends AppCompatActivity {
         });
 
         builder.create().show();
+    }
+    // Implementing the interface method to handle table item deletion
+    @Override
+    public void onTableDelete(int position) {
+        // Retrieve the clicked table item
+        TableItem clickedTable = tableList.get(position);
+
+        // Delete the table from the Room database
+        appDatabase.databaseDao().deleteTable(databaseName, clickedTable.getName());
+
+        // Remove the table item from the RecyclerView
+        tableList.remove(position);
+        tableAdapter.notifyItemRemoved(position);
     }
 
     private void showAddColumnDialog(String tableName, int columnCount) {
@@ -154,11 +178,27 @@ public class TableActivity extends AppCompatActivity {
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                // This method will be called when the "Cancel" button is clicked
+                // Here, we simply dismiss the dialog
                 dialog.dismiss();
             }
         });
-
         builder.create().show();
+    }
+
+
+    // Implementing the interface method to handle table item clicks
+    @Override
+    public void onTableClick(int position) {
+        // Retrieve the clicked table item
+        TableItem clickedTable = tableList.get(position);
+
+        // Create an intent to navigate to the TableDetailActivity
+        Intent intent = new Intent(TableActivity.this, TableDetailActivity.class);
+        // Pass relevant data to the TableDetailActivity
+        intent.putExtra("databaseName", databaseName);
+        intent.putExtra("tableName", clickedTable.getName());
+        startActivity(intent);
     }
 
     private static class CreateTableTask extends AsyncTask<Void, Void, Boolean> {

@@ -4,6 +4,8 @@ import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Update;
+
 import java.util.List;
 
 @Dao
@@ -30,4 +32,8 @@ public interface DatabaseDao {
 
     @Insert
     void insertTable(TableEntity table);
+
+    // Add method to delete a table from a specific database
+    @Query("DELETE FROM tables WHERE databaseName = :databaseName AND name = :tableName")
+    void deleteTable(String databaseName, String tableName);
 }

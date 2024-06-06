@@ -1,0 +1,76 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#cfcccc">
+
+    <!-- Column names -->
+    <LinearLayout
+        android:id="@+id/linearLayoutColumnNames"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#000000"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <!-- Dynamically add TextViews for column names here -->
+
+
+        <!-- Add more TextViews for additional columns as needed -->
+
+    </LinearLayout>
+
+    <!-- Table data -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewTableData"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#CBC8C8"
+        android:padding="4dp"
+        android:scrollbars="vertical" />
+
+    <!-- Buttons for insert, delete, and update operations -->
+    <LinearLayout
+        android:id="@+id/buttonLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#000000"
+        android:orientation="horizontal"
+
+        android:padding="8dp">
+
+        <Button
+            android:id="@+id/btnInsert"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:layout_weight="1"
+            android:backgroundTint="#CCC9C9"
+            android:text="Insert"
+            android:textColor="#000000" />
+
+        <Button
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="#CDCACA"
+            android:text="Delete"
+            android:textColor="#000000" />
+
+        <Button
+            android:id="@+id/btnUpdate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+
+            android:layout_weight="1"
+            android:backgroundTint="#CDCACA"
+            android:text="Update"
+            android:textColor="#000000" />
+    </LinearLayout>
+</LinearLayout>

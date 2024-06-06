@@ -9,6 +9,7 @@ public class TableViewHolder extends RecyclerView.ViewHolder {
     TextView textViewTableName;
     TextView textViewColumnCount;
 
+
     public TableViewHolder(@NonNull View itemView) {
         super(itemView);
         textViewTableName = itemView.findViewById(R.id.textViewTableName);

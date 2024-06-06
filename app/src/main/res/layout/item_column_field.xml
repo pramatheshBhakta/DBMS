@@ -3,19 +3,24 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:padding="8dp"
+    >
 
     <EditText
         android:id="@+id/editTextColumnName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:hint="Column Name" />
+        android:hint="Column Name"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@android:color/white" />
 
     <Spinner
         android:id="@+id/spinnerDataType"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@android:color/white" />
 
 </LinearLayout>
