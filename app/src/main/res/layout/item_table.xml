@@ -3,19 +3,20 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:padding="16dp">
 
-    <EditText
-        android:id="@+id/editTextColumnName"
+    <TextView
+        android:id="@+id/textViewTableName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:hint="Column Name" />
+        android:text="Table Name" />
 
-    <Spinner
-        android:id="@+id/spinnerDataType"
+    <TextView
+        android:id="@+id/textViewColumnCount"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:text="Column Count" />
 
 </LinearLayout>

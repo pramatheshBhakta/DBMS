@@ -21,14 +21,13 @@ public interface DatabaseDao {
     @Query("SELECT * FROM databases")
     LiveData<List<DatabaseEntity>> getAllDatabases();
 
-    // Add method to retrieve all tables
-    @Query("SELECT * FROM tables")
-    LiveData<List<TableEntity>> getAllTables();
+    // Add method to retrieve tables specific to a database
+    @Query("SELECT * FROM tables WHERE databaseName = :databaseName")
+    LiveData<List<TableEntity>> getTablesForDatabase(String databaseName);
 
     @Query("SELECT * FROM databases WHERE name = :name LIMIT 1")
     DatabaseEntity getDatabaseByName(String name);
 
-    @Query("CREATE TABLE IF NOT EXISTS :tableName (:columnDefinition)")
-    void createTable(String tableName, String columnDefinition);
-
+    @Insert
+    void insertTable(TableEntity table);
 }

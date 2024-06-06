@@ -123,7 +123,7 @@ public class MainActivity extends AppCompatActivity implements DatabaseAdapter.O
     public void onDatabaseClick(String databaseName) {
         // Start TableActivity with the selected database name
         Intent intent = new Intent(MainActivity.this, TableActivity.class);
-        intent.putExtra("DATABASE_NAME", databaseName);
+        intent.putExtra("databaseName", databaseName);
         startActivity(intent);
     }
 }

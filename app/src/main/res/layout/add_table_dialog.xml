@@ -1,32 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <EditText
         android:id="@+id/editTextTableName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter Table Name"
-        android:layout_margin="16dp"/>
+        android:hint="Table Name" />
 
     <EditText
         android:id="@+id/editTextColumnCount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter Number of Columns"
-        android:inputType="number"
-        android:layout_below="@id/editTextTableName"
-        android:layout_margin="16dp"/>
+        android:hint="Column Count"
+        android:inputType="number" />
 
-    <!-- Add more EditText fields dynamically for column names and data types based on the column count -->
-
-    <Button
-        android:id="@+id/buttonSubmit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/editTextColumnCount"
-        android:layout_centerHorizontal="true"
-        android:text="Submit"/>
-
-</RelativeLayout>
+</LinearLayout>

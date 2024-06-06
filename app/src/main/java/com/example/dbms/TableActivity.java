@@ -1,6 +1,7 @@
 package com.example.dbms;
 
 import android.content.DialogInterface;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,6 +29,7 @@ public class TableActivity extends AppCompatActivity {
     private TableAdapter tableAdapter;
     private List<TableItem> tableList = new ArrayList<>();
     private AppDatabase appDatabase;
+    private String databaseName;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -39,16 +41,19 @@ public class TableActivity extends AppCompatActivity {
         tableAdapter = new TableAdapter(tableList);
         recyclerViewTables.setAdapter(tableAdapter);
 
+        // Get the selected database name from the intent
+        databaseName = getIntent().getStringExtra("databaseName");
+
         // Initialize Room database
         appDatabase = AppDatabase.getDatabase(this);
 
         // Observe changes in the database and update UI accordingly
-        appDatabase.databaseDao().getAllTables().observe(this, new Observer<List<TableEntity>>() {
+        appDatabase.databaseDao().getTablesForDatabase(databaseName).observe(this, new Observer<List<TableEntity>>() {
             @Override
             public void onChanged(List<TableEntity> tableEntities) {
                 tableList.clear();
                 for (TableEntity tableEntity : tableEntities) {
-                    tableList.add(new TableItem(tableEntity.name, tableEntity.columnCount));
+                    tableList.add(new TableItem(tableEntity.getName(), tableEntity.getColumnCount()));
                 }
                 tableAdapter.notifyDataSetChanged();
             }
@@ -143,7 +148,7 @@ public class TableActivity extends AppCompatActivity {
                 }
 
                 // Create a new table with the specified attributes
-                createTable(tableName, columnNames, dataTypes);
+                new CreateTableTask(appDatabase, TableActivity.this, databaseName, tableName, columnNames, dataTypes).execute();
             }
         });
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -156,30 +161,71 @@ public class TableActivity extends AppCompatActivity {
         builder.create().show();
     }
 
-    private void createTable(String tableName, String columnDefinition) {
-        // Check if the database is initialized
-        if (appDatabase != null) {
-            // Ensure there are column names and data types
-            if (!tableName.isEmpty() && !columnDefinition.isEmpty()) {
+    private static class CreateTableTask extends AsyncTask<Void, Void, Boolean> {
+        private final AppDatabase appDatabase;
+        private final TableActivity activity;
+        private final String databaseName;
+        private final String tableName;
+        private final List<String> columnNames;
+        private final List<String> dataTypes;
+        private String errorMessage;
+
+        CreateTableTask(AppDatabase appDatabase, TableActivity activity, String databaseName, String tableName, List<String> columnNames, List<String> dataTypes) {
+            this.appDatabase = appDatabase;
+            this.activity = activity;
+            this.databaseName = databaseName;
+            this.tableName = tableName;
+            this.columnNames = columnNames;
+            this.dataTypes = dataTypes;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... voids) {
+            if (columnNames.size() == dataTypes.size() && columnNames.size() > 0) {
                 // Generate the SQL query to create the table
-                String query = "CREATE TABLE IF NOT EXISTS "+ tableName + " (" + columnDefinition + ")";
+                StringBuilder queryBuilder = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
+                queryBuilder.append(tableName).append(" (");
+
+                // Add column names and data types to the query
+                for (int i = 0; i < columnNames.size(); i++) {
+                    queryBuilder.append(columnNames.get(i)).append(" ").append(dataTypes.get(i));
+                    if (i < columnNames.size() - 1) {
+                        queryBuilder.append(", ");
+                    }
+                }
+
+                // Close the query
+                queryBuilder.append(");");
 
                 // Execute the SQL query to create the table
+                String createTableQuery = queryBuilder.toString();
                 try {
-                    appDatabase.databaseWriteExecutor.execute(() -> {
-                        appDatabase.databaseDao().createTable(query);
-                    });
-                    Toast.makeText(this, "Table created successfully", Toast.LENGTH_SHORT).show();
+                    appDatabase.getOpenHelper().getWritableDatabase().execSQL(createTableQuery);
+
+                    // Insert metadata into the Room database
+                    TableEntity tableEntity = new TableEntity(tableName, columnNames.size());
+                    tableEntity.setDatabaseName(databaseName); // Set the database name
+                    appDatabase.databaseDao().insertTable(tableEntity);
+                    return true;
                 } catch (Exception e) {
-                    Toast.makeText(this, "Error creating table: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    errorMessage = e.getMessage();
                     e.printStackTrace();
+                    return false;
                 }
             } else {
-                Toast.makeText(this, "Please enter valid table name and column definition", Toast.LENGTH_SHORT).show();
+                errorMessage = "Please enter valid column names and data types";
+                return false;
             }
-        } else {
-            Toast.makeText(this, "Database is not initialized", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        protected void onPostExecute(Boolean success) {
+            if (success) {
+                Toast.makeText(activity, "Table created successfully", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(activity, "Error creating table: " + errorMessage, Toast.LENGTH_SHORT).show();
+            }
         }
     }
-
 }
+
