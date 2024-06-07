@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:hint="Column Name"
-        android:textColor="@android:color/white"
+        android:textColor="@android:color/black"
         android:backgroundTint="@android:color/white" />
 
     <Spinner
@@ -20,7 +20,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="@android:color/white"
+        android:textColor="@android:color/black"
         android:backgroundTint="@android:color/white" />
 
 </LinearLayout>

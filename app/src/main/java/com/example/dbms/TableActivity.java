@@ -1,5 +1,6 @@
 package com.example.dbms;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -8,6 +9,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+
+import androidx.sqlite.db.SimpleSQLiteQuery;
+import androidx.sqlite.db.SupportSQLiteQuery;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -19,7 +23,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
+import com.example.dbms.DatabaseDao;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
@@ -34,6 +38,7 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
     private List<TableItem> tableList = new ArrayList<>();
     private AppDatabase appDatabase;
     private String databaseName;
+    private DatabaseDao databaseDao;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -42,15 +47,15 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
 
         recyclerViewTables = findViewById(R.id.recyclerViewTables);
         recyclerViewTables.setLayoutManager(new LinearLayoutManager(this));
-        tableAdapter = new TableAdapter(tableList);
+
+        // Pass `this` to the TableAdapter constructor
+        tableAdapter = new TableAdapter(tableList, this);
         recyclerViewTables.setAdapter(tableAdapter);
         dbname = findViewById(R.id.textViewDatabaseName);
-
 
         // Get the selected database name from the intent
         databaseName = getIntent().getStringExtra("databaseName");
         dbname.setText(databaseName.toUpperCase(Locale.ROOT) + "'S DATABASE");
-
 
         // Initialize Room database
         appDatabase = AppDatabase.getDatabase(this);
@@ -75,10 +80,8 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
                 showAddTableDialog();
             }
         });
-
-        // Set the click listener for table items
-        tableAdapter.setOnTableClickListener(this);
     }
+
 
     private void showAddTableDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -113,18 +116,54 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
 
         builder.create().show();
     }
+
     // Implementing the interface method to handle table item deletion
     @Override
     public void onTableDelete(int position) {
         // Retrieve the clicked table item
-        TableItem clickedTable = tableList.get(position);
+        TableItem tableItem = tableList.get(position);
 
-        // Delete the table from the Room database
-        appDatabase.databaseDao().deleteTable(databaseName, clickedTable.getName());
+        // Show a confirmation dialog
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Table")
+                .setMessage("Are you sure you want to delete the table " + tableItem.getName() + "?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Execute AsyncTask to delete the table
+                        new DeleteTableTask(TableActivity.this, appDatabase, databaseName, tableItem.getName()).execute();
+                    }
+                })
+                .setNegativeButton("No", null)
+                .show();
+    }
 
-        // Remove the table item from the RecyclerView
-        tableList.remove(position);
-        tableAdapter.notifyItemRemoved(position);
+    private static class DeleteTableTask extends AsyncTask<Void, Void, Void> {
+        private final String databaseName;
+        private final String tableName;
+        private final AppDatabase appDatabase;
+        private DatabaseDao databaseDao;
+
+        DeleteTableTask(Context context, AppDatabase appDatabase, String databaseName, String tableName) {
+            this.databaseName = databaseName;
+            this.tableName = tableName;
+            this.appDatabase = AppDatabase.getDatabase(context); // Correct context reference
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            // Delete the table from the database
+            String sqlQuery = "DROP TABLE IF EXISTS " + tableName;
+            SupportSQLiteQuery query = new SimpleSQLiteQuery(sqlQuery);
+            databaseDao.dropTable(query);
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            // You might want to update the UI after table deletion
+            // For example, refresh the RecyclerView adapter or show a Toast message
+        }
     }
 
     private void showAddColumnDialog(String tableName, int columnCount) {
@@ -185,7 +224,6 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         });
         builder.create().show();
     }
-
 
     // Implementing the interface method to handle table item clicks
     @Override
@@ -268,4 +306,3 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         }
     }
 }
-

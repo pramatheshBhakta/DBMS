@@ -4,10 +4,10 @@ import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
-import androidx.room.Update;
+import androidx.room.RawQuery;
+import androidx.sqlite.db.SupportSQLiteQuery;
 
 import java.util.List;
-
 @Dao
 public interface DatabaseDao {
 
@@ -23,7 +23,6 @@ public interface DatabaseDao {
     @Query("SELECT * FROM databases")
     LiveData<List<DatabaseEntity>> getAllDatabases();
 
-    // Add method to retrieve tables specific to a database
     @Query("SELECT * FROM tables WHERE databaseName = :databaseName")
     LiveData<List<TableEntity>> getTablesForDatabase(String databaseName);
 
@@ -33,7 +32,11 @@ public interface DatabaseDao {
     @Insert
     void insertTable(TableEntity table);
 
-    // Add method to delete a table from a specific database
     @Query("DELETE FROM tables WHERE databaseName = :databaseName AND name = :tableName")
     void deleteTable(String databaseName, String tableName);
+    @RawQuery
+    int dropTable(SupportSQLiteQuery query);
+
+
+    ;
 }

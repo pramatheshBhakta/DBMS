@@ -44,6 +44,9 @@ public class TableDataAdapter extends RecyclerView.Adapter<TableDataAdapter.View
         this.columnNames = columnNames;
     }
 
+    public List<List<String>> getTableData() {
+        return tableData;
+    }
     public static class ViewHolder extends RecyclerView.ViewHolder {
 
         private LinearLayout linearLayoutRow;
@@ -61,6 +64,7 @@ public class TableDataAdapter extends RecyclerView.Adapter<TableDataAdapter.View
             for (String cellData : rowData) {
                 TextView textView = new TextView(itemView.getContext());
                 textView.setText(cellData);
+
                 textView.setPadding(16, 8, 16, 8); // Adjust padding for spacing
                 textView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1)); // Adjust layout parameters
                 textView.setBackgroundResource(R.drawable.border_bottom); // Set background drawable with right border

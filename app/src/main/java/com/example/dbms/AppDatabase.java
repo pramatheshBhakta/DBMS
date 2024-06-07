@@ -3,6 +3,7 @@ package com.example.dbms;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.util.Log;
 
 import androidx.room.Database;
 import androidx.room.Room;
@@ -15,10 +16,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Database(entities = {DatabaseEntity.class, TableEntity.class}, version = 2)
+@Database(entities = {DatabaseEntity.class, TableEntity.class}, version = 2, exportSchema = false)
 @TypeConverters(DateConverter.class)
 public abstract class AppDatabase extends RoomDatabase {
-
     public abstract DatabaseDao databaseDao();
 
     private static volatile AppDatabase INSTANCE;
@@ -38,17 +38,76 @@ public abstract class AppDatabase extends RoomDatabase {
         }
         return INSTANCE;
     }
+    public List<String> getTableColumnTypes(String tableName) {
+        SupportSQLiteDatabase db = getOpenHelper().getReadableDatabase();
+        List<String> columnTypes = new ArrayList<>();
 
-    public void insertRow(String tableName, List<String> rowData, List<String> columnNames) {
+        Cursor cursor = db.query("PRAGMA table_info(" + tableName + ")");
+        if (cursor.moveToFirst()) {
+            do {
+                columnTypes.add(cursor.getString(cursor.getColumnIndexOrThrow("type")));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        return columnTypes;
+    }
+
+    public void insertRow(String tableName, List<String> columnNames, List<String> columnDataTypes, List<String> rowData) {
         SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
         ContentValues values = new ContentValues();
 
+        // Validate data types before insertion
         for (int i = 0; i < columnNames.size(); i++) {
-            values.put(columnNames.get(i), rowData.get(i));
+            String columnName = columnNames.get(i);
+            String dataType = columnDataTypes.get(i);
+            String value = rowData.get(i);
+
+            // Validate value against data type
+            if (validateDataType(value, dataType)) {
+                // Value matches data type, insert it into ContentValues
+                values.put(columnName, value);
+            } else {
+                // Value does not match data type, handle error (e.g., display a message)
+                Log.e("AppDatabase", "Invalid value for column " + columnName + ": " + value);
+                return; // Skip insertion for this row
+            }
         }
 
         db.insert(tableName, 0, values);
     }
+    public boolean validateDataType(String value, String dataType) {
+        // Validate data type based on the expected type
+        // For simplicity, we'll perform basic validation for demonstration purposes
+
+        // Validate INTEGER data type
+        if (dataType.equalsIgnoreCase("INTEGER")) {
+            try {
+                Integer.parseInt(value);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+
+        // Validate TEXT data type
+        if (dataType.equalsIgnoreCase("TEXT")) {
+            // No validation needed for TEXT type
+            return true;
+        }
+        if (dataType.equalsIgnoreCase("REAL")) {
+            try {
+                Float.parseFloat(value);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        // Add more validations for other data types as needed
+
+        // Unknown data type, return false
+        return false;
+    }
+
 
     public List<List<String>> getTableData(String tableName) {
         SupportSQLiteDatabase db = getOpenHelper().getReadableDatabase();
@@ -83,10 +142,18 @@ public abstract class AppDatabase extends RoomDatabase {
         return columnNames;
     }
 
-    public void deleteRow(String tableName, int id) {
+    public void deleteRow(String tableName, int position) {
+        position=position-1;
         SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
-        db.delete(tableName, "id = ?", new Object[]{id});
+        String primaryKeyColumn = "ROWID"; // Assuming the primary key column is ROWID, replace it with the actual primary key column name
+
+        // Construct the DELETE SQL query using the primary key column
+        String sql = "DELETE FROM " + tableName + " WHERE " + primaryKeyColumn + " IN (SELECT " + primaryKeyColumn + " FROM " + tableName + " LIMIT 1 OFFSET " + position + ")";
+
+        // Execute the SQL query to delete the row at the specified position
+        db.execSQL(sql);
     }
+
 
     public void updateRow(String tableName, int id, List<String> rowData, List<String> columnNames) {
         SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
@@ -98,4 +165,6 @@ public abstract class AppDatabase extends RoomDatabase {
 
         db.update(tableName, 0, values, "id = ?", new Object[]{id});
     }
+
+
 }
