@@ -5,6 +5,7 @@ import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
 import androidx.room.RawQuery;
+import androidx.room.Update;
 import androidx.sqlite.db.SupportSQLiteQuery;
 
 import java.util.List;
@@ -23,6 +24,8 @@ public interface DatabaseDao {
     @Query("SELECT * FROM databases")
     LiveData<List<DatabaseEntity>> getAllDatabases();
 
+    @Update
+    void updateRow(DatabaseEntity row);
     @Query("SELECT * FROM tables WHERE databaseName = :databaseName")
     LiveData<List<TableEntity>> getTablesForDatabase(String databaseName);
 

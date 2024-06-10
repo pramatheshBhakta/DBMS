@@ -61,6 +61,12 @@ public class TableDetailActivity extends AppCompatActivity {
                 showInsertDialog();
             }
         });
+        findViewById(R.id.btnUpdate).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showUpdateDialog();
+            }
+        });
 
         // Set up the Delete button click listener
         findViewById(R.id.btnDelete).setOnClickListener(new View.OnClickListener() {
@@ -71,6 +77,8 @@ public class TableDetailActivity extends AppCompatActivity {
             }
         });
     }
+
+
 
     private void showDeletePositionDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -186,6 +194,84 @@ public class TableDetailActivity extends AppCompatActivity {
         tableDataAdapter.setColumnNames(columnNames);
         tableDataAdapter.notifyDataSetChanged();
     }
+    private void showUpdateDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Update Row");
+
+        // Create a LinearLayout to hold input fields
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+
+        // Fetch column data types from the database
+        List<String> columnDataTypes = appDatabase.getTableColumnTypes(tableName);
+
+        // Create EditText fields for each column
+        final List<EditText> editTexts = new ArrayList<>();
+        for (int i = 0; i < columnNames.size(); i++) {
+            EditText editText = new EditText(this);
+            editText.setHint(columnNames.get(i));
+            layout.addView(editText);
+            editTexts.add(editText);
+
+            // Validate data type based on column data types fetched from the database
+            final int index = i;
+            editText.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    if (!appDatabase.validateDataType(s.toString(), columnDataTypes.get(index))) {
+                        editText.setError("Invalid data type");
+                    }
+                }
+            });
+        }
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Update", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                List<String> updatedRowData = new ArrayList<>();
+                for (EditText editText : editTexts) {
+                    updatedRowData.add(editText.getText().toString());
+                }
+
+                // Validate data types before updating
+                boolean isValid = true;
+                for (int i = 0; i < updatedRowData.size(); i++) {
+                    if (!appDatabase.validateDataType(updatedRowData.get(i), columnDataTypes.get(i))) {
+                        editTexts.get(i).setError("Invalid data type");
+                        isValid = false;
+                    }
+                }
+
+                if (isValid) {
+                    // Call the method to handle update operation
+                    new InsertRowTask().execute(updatedRowData);
+
+                } else {
+                    Toast.makeText(TableDetailActivity.this, "Please correct the data types", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+    }
+
+    // Method to handle the update operation
+
 
     private void showInsertDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -334,24 +420,34 @@ public class TableDetailActivity extends AppCompatActivity {
         @Override
         protected Boolean doInBackground(List<String>... lists) {
             try {
-                appDatabase.insertRow(tableName, columnNames, appDatabase.getTableColumnTypes(tableName), lists[0]);
-                return true;
+                // Perform the upsert operation
+                appDatabase.upsertRow(tableName, columnNames, appDatabase.getTableColumnTypes(tableName), lists[0]);
+                return true; // Operation successful
             } catch (Exception e) {
                 e.printStackTrace();
-                return false;
+                return false; // Operation failed
             }
         }
 
         @Override
         protected void onPostExecute(Boolean success) {
             if (success) {
-                new LoadTableDataTask().execute(); // Reload table data to reflect changes
-                Toast.makeText(TableDetailActivity.this, "Row inserted successfully", Toast.LENGTH_SHORT).show();
+                // Check if data was inserted or updated
+                if (appDatabase.isDataInserted()) {
+                    // Data was inserted
+                    Toast.makeText(TableDetailActivity.this, "Row inserted successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Data was updated
+                    Toast.makeText(TableDetailActivity.this, "Row updated successfully", Toast.LENGTH_SHORT).show();
+                }
+                // Reload table data to reflect changes
+                new LoadTableDataTask().execute();
             } else {
-                Toast.makeText(TableDetailActivity.this, "Error inserting row", Toast.LENGTH_SHORT).show();
+                Toast.makeText(TableDetailActivity.this, "Error inserting/updating row", Toast.LENGTH_SHORT).show();
             }
         }
     }
+
 
     private class DeleteRowTask extends AsyncTask<Integer, Void, Boolean> {
         @Override

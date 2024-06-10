@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 @Database(entities = {DatabaseEntity.class, TableEntity.class}, version = 2, exportSchema = false)
 @TypeConverters(DateConverter.class)
 public abstract class AppDatabase extends RoomDatabase {
+    private boolean isDataInserted = false;
     public abstract DatabaseDao databaseDao();
 
     private static volatile AppDatabase INSTANCE;
@@ -51,30 +52,30 @@ public abstract class AppDatabase extends RoomDatabase {
         cursor.close();
         return columnTypes;
     }
-
-    public void insertRow(String tableName, List<String> columnNames, List<String> columnDataTypes, List<String> rowData) {
-        SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
-        ContentValues values = new ContentValues();
-
-        // Validate data types before insertion
-        for (int i = 0; i < columnNames.size(); i++) {
-            String columnName = columnNames.get(i);
-            String dataType = columnDataTypes.get(i);
-            String value = rowData.get(i);
-
-            // Validate value against data type
-            if (validateDataType(value, dataType)) {
-                // Value matches data type, insert it into ContentValues
-                values.put(columnName, value);
-            } else {
-                // Value does not match data type, handle error (e.g., display a message)
-                Log.e("AppDatabase", "Invalid value for column " + columnName + ": " + value);
-                return; // Skip insertion for this row
-            }
-        }
-
-        db.insert(tableName, 0, values);
-    }
+//
+//    public void insertRow(String tableName, List<String> columnNames, List<String> columnDataTypes, List<String> rowData) {
+//        SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
+//        ContentValues values = new ContentValues();
+//
+//        // Validate data types before insertion
+//        for (int i = 0; i < columnNames.size(); i++) {
+//            String columnName = columnNames.get(i);
+//            String dataType = columnDataTypes.get(i);
+//            String value = rowData.get(i);
+//
+//            // Validate value against data type
+//            if (validateDataType(value, dataType)) {
+//                // Value matches data type, insert it into ContentValues
+//                values.put(columnName, value);
+//            } else {
+//                // Value does not match data type, handle error (e.g., display a message)
+//                Log.e("AppDatabase", "Invalid value for column " + columnName + ": " + value);
+//                return; // Skip insertion for this row
+//            }
+//        }
+//
+//        db.insert(tableName, 0, values);
+//    }
     public boolean validateDataType(String value, String dataType) {
         // Validate data type based on the expected type
         // For simplicity, we'll perform basic validation for demonstration purposes
@@ -154,17 +155,50 @@ public abstract class AppDatabase extends RoomDatabase {
         db.execSQL(sql);
     }
 
-
-    public void updateRow(String tableName, int id, List<String> rowData, List<String> columnNames) {
+    public void upsertRow(String tableName, List<String> columnNames, List<String> columnDataTypes, List<String> rowData) {
         SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
         ContentValues values = new ContentValues();
 
+        // Validate data types before insertion
         for (int i = 0; i < columnNames.size(); i++) {
-            values.put(columnNames.get(i), rowData.get(i));
+            String columnName = columnNames.get(i);
+            String dataType = columnDataTypes.get(i);
+            String value = rowData.get(i);
+
+            // Validate value against data type
+            if (validateDataType(value, dataType)) {
+                // Value matches data type, insert it into ContentValues
+                values.put(columnName, value);
+            } else {
+                // Value does not match data type, handle error (e.g., display a message)
+                Log.e("AppDatabase", "Invalid value for column " + columnName + ": " + value);
+                return; // Skip insertion for this row
+            }
         }
 
-        db.update(tableName, 0, values, "id = ?", new Object[]{id});
+        // Check if the row with the given primary key already exists
+        String primaryKeyColumnName = columnNames.get(0); // Assuming the first column is the primary key
+        String primaryKeyValue = rowData.get(0); // Assuming the primary key value is in the first column
+        Cursor cursor = db.query("SELECT * FROM " + tableName + " WHERE " + primaryKeyColumnName + " = ?", new String[]{primaryKeyValue});
+        if (cursor != null && cursor.moveToFirst()) {
+            // Row with the given primary key exists, update it
+            db.update(tableName, 0, values, primaryKeyColumnName + " = ?", new String[]{primaryKeyValue});
+            isDataInserted = false; // Data was updated, not inserted
+        } else {
+            // Row with the given primary key does not exist, insert it
+            db.insert(tableName, 0, values);
+            isDataInserted = true; // Data was inserted, not updated
+        }
+        if (cursor != null) {
+            cursor.close();
+        }
     }
 
-
+    public boolean isDataInserted() {
+        return isDataInserted;
+    }
 }
+
+
+
+
