@@ -9,13 +9,21 @@
         android:id="@+id/editTextTableName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Table Name" />
+        android:hint="Table Name"
+        android:inputType="text" />
 
     <EditText
         android:id="@+id/editTextColumnCount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Column Count"
+        android:hint="Number of Columns"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/editTextForeignKeyCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Number of Foreign Keys"
         android:inputType="number" />
 
 </LinearLayout>

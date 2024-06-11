@@ -52,30 +52,7 @@ public abstract class AppDatabase extends RoomDatabase {
         cursor.close();
         return columnTypes;
     }
-//
-//    public void insertRow(String tableName, List<String> columnNames, List<String> columnDataTypes, List<String> rowData) {
-//        SupportSQLiteDatabase db = getOpenHelper().getWritableDatabase();
-//        ContentValues values = new ContentValues();
-//
-//        // Validate data types before insertion
-//        for (int i = 0; i < columnNames.size(); i++) {
-//            String columnName = columnNames.get(i);
-//            String dataType = columnDataTypes.get(i);
-//            String value = rowData.get(i);
-//
-//            // Validate value against data type
-//            if (validateDataType(value, dataType)) {
-//                // Value matches data type, insert it into ContentValues
-//                values.put(columnName, value);
-//            } else {
-//                // Value does not match data type, handle error (e.g., display a message)
-//                Log.e("AppDatabase", "Invalid value for column " + columnName + ": " + value);
-//                return; // Skip insertion for this row
-//            }
-//        }
-//
-//        db.insert(tableName, 0, values);
-//    }
+
     public boolean validateDataType(String value, String dataType) {
         // Validate data type based on the expected type
         // For simplicity, we'll perform basic validation for demonstration purposes

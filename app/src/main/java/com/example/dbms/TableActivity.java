@@ -1,18 +1,16 @@
 package com.example.dbms;
 
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
 
-import androidx.sqlite.db.SimpleSQLiteQuery;
-import androidx.sqlite.db.SupportSQLiteQuery;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -24,7 +22,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.example.dbms.DatabaseDao;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
@@ -92,22 +90,28 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
 
         EditText editTextTableName = dialogView.findViewById(R.id.editTextTableName);
         EditText editTextColumnCount = dialogView.findViewById(R.id.editTextColumnCount);
+        EditText editTextForeignKeyCount = dialogView.findViewById(R.id.editTextForeignKeyCount);
 
         builder.setTitle("Add Table");
-        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
+
+        builder.setPositiveButton("Next", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String tableName = editTextTableName.getText().toString().trim();
                 String columnCountString = editTextColumnCount.getText().toString().trim();
-                if (!tableName.isEmpty() && !columnCountString.isEmpty()) {
+                String foreignKeyCountString = editTextForeignKeyCount.getText().toString().trim();
+
+                if (!tableName.isEmpty() && !columnCountString.isEmpty() && !foreignKeyCountString.isEmpty()) {
                     int columnCount = Integer.parseInt(columnCountString);
-                    // Show another dialog to add column names and data types based on the column count
-                    showAddColumnDialog(tableName, columnCount);
+                    int foreignKeyCount = Integer.parseInt(foreignKeyCountString);
+                    // Show another dialog to add column names, data types, and foreign key references
+                    showAddColumnDialog(tableName, columnCount, foreignKeyCount);
                 } else {
-                    Toast.makeText(TableActivity.this, "Please enter valid table name and column count", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(TableActivity.this, "Please enter valid inputs", Toast.LENGTH_SHORT).show();
                 }
             }
         });
+
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -118,7 +122,239 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         builder.create().show();
     }
 
-    // Implementing the interface method to handle table item deletion
+
+    private void showAddColumnDialog(String tableName, int columnCount, int foreignKeyCount) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.add_column_dialog, null);
+        builder.setView(dialogView);
+
+        LinearLayout linearLayoutColumnContainer = dialogView.findViewById(R.id.linearLayoutColumnContainer);
+        LinearLayout linearLayoutForeignKeyContainer = dialogView.findViewById(R.id.linearLayoutForeignKeyContainer);
+
+        // Dynamically create input fields for columns
+        for (int i = 0; i < columnCount; i++) {
+            View columnView = inflater.inflate(R.layout.item_column_field, null);
+            EditText editTextColumnName = columnView.findViewById(R.id.editTextColumnName);
+            Spinner spinnerDataType = columnView.findViewById(R.id.spinnerDataType);
+            CheckBox checkBoxPrimaryKey = columnView.findViewById(R.id.checkBoxPrimaryKey);
+
+            // Populate spinner with data types (e.g., text, integer, real)
+            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.data_types, android.R.layout.simple_spinner_item);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerDataType.setAdapter(adapter);
+
+            linearLayoutColumnContainer.addView(columnView);
+        }
+
+        // Fetch available tables and columns for foreign key references
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                List<String> availableTables = appDatabase.databaseDao().getAllTables();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ArrayAdapter<String> tableAdapter = new ArrayAdapter<>(TableActivity.this, android.R.layout.simple_spinner_item, availableTables);
+                        tableAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+                        // Dynamically create input fields for foreign key references
+                        for (int i = 0; i < foreignKeyCount; i++) {
+                            View foreignKeyView = inflater.inflate(R.layout.item_foreign_key_field, null);
+                            Spinner spinnerForeignKeyTable = foreignKeyView.findViewById(R.id.spinnerForeignKeyTable);
+                            Spinner spinnerForeignKeyColumn = foreignKeyView.findViewById(R.id.spinnerForeignKeyColumn);
+
+                            spinnerForeignKeyTable.setAdapter(tableAdapter);
+                            spinnerForeignKeyTable.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                                @Override
+                                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                                    String selectedTable = parent.getItemAtPosition(position).toString();
+                                    AsyncTask.execute(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            List<String> columnNames = appDatabase.getTableColumns(selectedTable);
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    ArrayAdapter<String> columnAdapter = new ArrayAdapter<>(TableActivity.this, android.R.layout.simple_spinner_item, columnNames);
+                                                    columnAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                                                    spinnerForeignKeyColumn.setAdapter(columnAdapter);
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onNothingSelected(AdapterView<?> parent) {
+                                    // Do nothing
+                                }
+                            });
+
+                            linearLayoutForeignKeyContainer.addView(foreignKeyView);
+                        }
+                    }
+                });
+            }
+        });
+
+        builder.setTitle("Add Columns and Foreign Keys");
+        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                List<String> columnNames = new ArrayList<>();
+                List<String> dataTypes = new ArrayList<>();
+                List<String> primaryKeys = new ArrayList<>();
+                List<String> foreignKeyColumns = new ArrayList<>();
+                List<String> foreignKeyTables = new ArrayList<>();
+
+                // Collect column names, data types, and primary keys
+                for (int i = 0; i < columnCount; i++) {
+                    View columnView = linearLayoutColumnContainer.getChildAt(i);
+                    EditText editTextColumnName = columnView.findViewById(R.id.editTextColumnName);
+                    Spinner spinnerDataType = columnView.findViewById(R.id.spinnerDataType);
+                    CheckBox checkBoxPrimaryKey = columnView.findViewById(R.id.checkBoxPrimaryKey);
+
+                    String columnName = editTextColumnName.getText().toString().trim();
+                    String dataType = spinnerDataType.getSelectedItem().toString();
+
+                    if (!columnName.isEmpty()) {
+                        columnNames.add(columnName);
+                        dataTypes.add(dataType);
+                        if (checkBoxPrimaryKey.isChecked()) {
+                            primaryKeys.add(columnName);
+                        }
+                    }
+                }
+
+                // Collect foreign key references
+                for (int i = 0; i < foreignKeyCount; i++) {
+                    View foreignKeyView = linearLayoutForeignKeyContainer.getChildAt(i);
+                    Spinner spinnerForeignKeyTable = foreignKeyView.findViewById(R.id.spinnerForeignKeyTable);
+                    Spinner spinnerForeignKeyColumn = foreignKeyView.findViewById(R.id.spinnerForeignKeyColumn);
+
+                    String foreignKeyTable = spinnerForeignKeyTable.getSelectedItem().toString();
+                    String foreignKeyColumn = spinnerForeignKeyColumn.getSelectedItem().toString();
+
+                    foreignKeyTables.add(foreignKeyTable);
+                    foreignKeyColumns.add(foreignKeyColumn);
+                }
+
+                // Create the table with the specified attributes
+                CreateTableTask task = new CreateTableTask(appDatabase, TableActivity.this, databaseName, tableName, columnNames, dataTypes, foreignKeyColumns, foreignKeyTables, primaryKeys);
+                task.execute();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        builder.create().show();
+    }
+
+
+
+
+    private static class CreateTableTask extends AsyncTask<Void, Void, Boolean> {
+        private final AppDatabase appDatabase;
+        private final TableActivity activity;
+        private final String databaseName;
+        private final String tableName;
+        private final List<String> columnNames;
+        private final List<String> dataTypes;
+        private final List<String> foreignKeyColumns;
+        private final List<String> foreignKeyTables;
+        private final List<String> primaryKeys;
+        private String errorMessage;
+
+        CreateTableTask(AppDatabase appDatabase, TableActivity activity, String databaseName, String tableName, List<String> columnNames, List<String> dataTypes, List<String> foreignKeyColumns, List<String> foreignKeyTables, List<String> primaryKeys) {
+            this.appDatabase = appDatabase;
+            this.activity = activity;
+            this.databaseName = databaseName;
+            this.tableName = tableName;
+            this.columnNames = columnNames;
+            this.dataTypes = dataTypes;
+            this.foreignKeyColumns = foreignKeyColumns;
+            this.foreignKeyTables = foreignKeyTables;
+            this.primaryKeys = primaryKeys;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... voids) {
+            if (columnNames.size() == dataTypes.size() && columnNames.size() > 0) {
+                // Generate the SQL query to create the table
+                StringBuilder queryBuilder = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
+                queryBuilder.append(tableName).append(" (");
+
+                // Add column names and data types to the query
+                for (int i = 0; i < columnNames.size(); i++) {
+                    queryBuilder.append(columnNames.get(i)).append(" ").append(dataTypes.get(i));
+                    if (i < columnNames.size() - 1 || !foreignKeyColumns.isEmpty() || !primaryKeys.isEmpty()) {
+                        queryBuilder.append(", ");
+                    }
+                }
+
+                // Add primary key constraints if specified
+                if (!primaryKeys.isEmpty()) {
+                    queryBuilder.append("PRIMARY KEY(");
+                    for (int i = 0; i < primaryKeys.size(); i++) {
+                        queryBuilder.append(primaryKeys.get(i));
+                        if (i < primaryKeys.size() - 1) {
+                            queryBuilder.append(", ");
+                        }
+                    }
+                    queryBuilder.append(")");
+                    if (!foreignKeyColumns.isEmpty()) {
+                        queryBuilder.append(", ");
+                    }
+                }
+
+                // Add foreign key constraints if specified
+                for (int i = 0; i < foreignKeyColumns.size(); i++) {
+                    queryBuilder.append("FOREIGN KEY(").append(foreignKeyColumns.get(i)).append(") REFERENCES ").append(foreignKeyTables.get(i)).append("(").append(foreignKeyColumns.get(i)).append(")");
+                    if (i < foreignKeyColumns.size() - 1) {
+                        queryBuilder.append(", ");
+                    }
+                }
+
+                // Close the query
+                queryBuilder.append(");");
+
+                // Execute the SQL query to create the table
+                String createTableQuery = queryBuilder.toString();
+                try {
+                    appDatabase.getOpenHelper().getWritableDatabase().execSQL(createTableQuery);
+
+                    // Insert metadata into the Room database
+                    TableEntity tableEntity = new TableEntity(tableName, columnNames.size());
+                    tableEntity.setDatabaseName(databaseName); // Set the database name
+                    appDatabase.databaseDao().insertTable(tableEntity);
+                    return true;
+                } catch (Exception e) {
+                    errorMessage = e.getMessage();
+                    e.printStackTrace();
+                    return false;
+                }
+            } else {
+                errorMessage = "Please enter valid column names and data types";
+                return false;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(Boolean success) {
+            if (success) {
+                Toast.makeText(activity, "Table created successfully", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(activity, "Error creating table: " + errorMessage, Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
     @Override
     public void onTableDelete(int position) {
         // Retrieve the clicked table item
@@ -180,68 +416,6 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         }
     }
 
-
-
-    private void showAddColumnDialog(String tableName, int columnCount) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.add_column_dialog, null);
-        builder.setView(dialogView);
-
-        LinearLayout linearLayoutColumnContainer = dialogView.findViewById(R.id.linearLayoutColumnContainer);
-
-        for (int i = 0; i < columnCount; i++) {
-            View columnView = inflater.inflate(R.layout.item_column_field, null);
-            EditText editTextColumnName = columnView.findViewById(R.id.editTextColumnName);
-            Spinner spinnerDataType = columnView.findViewById(R.id.spinnerDataType);
-
-            // Populate spinner with data types (e.g., text, integer, real)
-            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.data_types, android.R.layout.simple_spinner_item);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerDataType.setAdapter(adapter);
-
-            // Add the inflated view to the linear layout container
-            linearLayoutColumnContainer.addView(columnView);
-        }
-
-        builder.setTitle("Add Columns");
-        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // Get column names and data types from the views dynamically
-                List<String> columnNames = new ArrayList<>();
-                List<String> dataTypes = new ArrayList<>();
-
-                for (int i = 0; i < columnCount; i++) {
-                    View columnView = linearLayoutColumnContainer.getChildAt(i);
-                    EditText editTextColumnName = columnView.findViewById(R.id.editTextColumnName);
-                    Spinner spinnerDataType = columnView.findViewById(R.id.spinnerDataType);
-
-                    String columnName = editTextColumnName.getText().toString().trim();
-                    String dataType = spinnerDataType.getSelectedItem().toString();
-
-                    if (!columnName.isEmpty()) {
-                        columnNames.add(columnName);
-                        dataTypes.add(dataType);
-                    }
-                }
-
-                // Create a new table with the specified attributes
-                new CreateTableTask(appDatabase, TableActivity.this, databaseName, tableName, columnNames, dataTypes).execute();
-            }
-        });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // This method will be called when the "Cancel" button is clicked
-                // Here, we simply dismiss the dialog
-                dialog.dismiss();
-            }
-        });
-        builder.create().show();
-    }
-
-    // Implementing the interface method to handle table item clicks
     @Override
     public void onTableClick(int position) {
         // Retrieve the clicked table item
@@ -256,70 +430,5 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         startActivity(intent);
     }
 
-    private static class CreateTableTask extends AsyncTask<Void, Void, Boolean> {
-        private final AppDatabase appDatabase;
-        private final TableActivity activity;
-        private final String databaseName;
-        private final String tableName;
-        private final List<String> columnNames;
-        private final List<String> dataTypes;
-        private String errorMessage;
 
-        CreateTableTask(AppDatabase appDatabase, TableActivity activity, String databaseName, String tableName, List<String> columnNames, List<String> dataTypes) {
-            this.appDatabase = appDatabase;
-            this.activity = activity;
-            this.databaseName = databaseName;
-            this.tableName = tableName;
-            this.columnNames = columnNames;
-            this.dataTypes = dataTypes;
-        }
-
-        @Override
-        protected Boolean doInBackground(Void... voids) {
-            if (columnNames.size() == dataTypes.size() && columnNames.size() > 0) {
-                // Generate the SQL query to create the table
-                StringBuilder queryBuilder = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
-                queryBuilder.append(tableName).append(" (");
-
-                // Add column names and data types to the query
-                for (int i = 0; i < columnNames.size(); i++) {
-                    queryBuilder.append(columnNames.get(i)).append(" ").append(dataTypes.get(i));
-                    if (i < columnNames.size() - 1) {
-                        queryBuilder.append(", ");
-                    }
-                }
-
-                // Close the query
-                queryBuilder.append(");");
-
-                // Execute the SQL query to create the table
-                String createTableQuery = queryBuilder.toString();
-                try {
-                    appDatabase.getOpenHelper().getWritableDatabase().execSQL(createTableQuery);
-
-                    // Insert metadata into the Room database
-                    TableEntity tableEntity = new TableEntity(tableName, columnNames.size());
-                    tableEntity.setDatabaseName(databaseName); // Set the database name
-                    appDatabase.databaseDao().insertTable(tableEntity);
-                    return true;
-                } catch (Exception e) {
-                    errorMessage = e.getMessage();
-                    e.printStackTrace();
-                    return false;
-                }
-            } else {
-                errorMessage = "Please enter valid column names and data types";
-                return false;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(Boolean success) {
-            if (success) {
-                Toast.makeText(activity, "Table created successfully", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(activity, "Error creating table: " + errorMessage, Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 }

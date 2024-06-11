@@ -388,34 +388,6 @@ public class TableDetailActivity extends AppCompatActivity {
     }
 
 
-
-    private void showDeleteDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Delete Row");
-
-        // Create an EditText to input row ID to delete
-        final EditText editTextRowId = new EditText(this);
-        editTextRowId.setHint("Type Name to be Deleted");
-        builder.setView(editTextRowId);
-
-        builder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                int rowId = Integer.parseInt(editTextRowId.getText().toString());
-                new DeleteRowTask().execute(rowId);
-            }
-        });
-
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-
-        builder.show();
-    }
-
     private class InsertRowTask extends AsyncTask<List<String>, Void, Boolean> {
         @Override
         protected Boolean doInBackground(List<String>... lists) {
@@ -448,27 +420,4 @@ public class TableDetailActivity extends AppCompatActivity {
         }
     }
 
-
-    private class DeleteRowTask extends AsyncTask<Integer, Void, Boolean> {
-        @Override
-        protected Boolean doInBackground(Integer... integers) {
-            try {
-                appDatabase.deleteRow(tableName, integers[0]);
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(Boolean success) {
-            if (success) {
-                new LoadTableDataTask().execute(); // Reload table data to reflect changes
-                Toast.makeText(TableDetailActivity.this, "Row deleted successfully", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(TableDetailActivity.this, "Error deleting row", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 }

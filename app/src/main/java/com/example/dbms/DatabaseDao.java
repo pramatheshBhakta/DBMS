@@ -41,6 +41,11 @@ public interface DatabaseDao {
     @RawQuery
     int dropTable(SupportSQLiteQuery query);
 
+    // DatabaseDao.java
+    // DatabaseDao.java
+    @Query("SELECT name FROM sqlite_master WHERE type='table' AND name != 'android_metadata'")
+    List<String> getAllTables();
 
-    ;
+
+
 }
