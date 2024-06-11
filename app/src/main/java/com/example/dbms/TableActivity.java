@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -131,40 +132,55 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         // Execute AsyncTask to delete the table
-                        new DeleteTableTask(TableActivity.this, appDatabase, databaseName, tableItem.getName()).execute();
+                        new DeleteTableTask(appDatabase, TableActivity.this, databaseName, tableItem.getName()).execute();
                     }
                 })
                 .setNegativeButton("No", null)
                 .show();
     }
 
-    private static class DeleteTableTask extends AsyncTask<Void, Void, Void> {
+    private static class DeleteTableTask extends AsyncTask<Void, Void, Boolean> {
+        private final AppDatabase appDatabase;
+        private final TableActivity activity;
         private final String databaseName;
         private final String tableName;
-        private final AppDatabase appDatabase;
-        private DatabaseDao databaseDao;
+        private String errorMessage;
 
-        DeleteTableTask(Context context, AppDatabase appDatabase, String databaseName, String tableName) {
+        DeleteTableTask(AppDatabase appDatabase, TableActivity activity, String databaseName, String tableName) {
+            this.appDatabase = appDatabase;
+            this.activity = activity;
             this.databaseName = databaseName;
             this.tableName = tableName;
-            this.appDatabase = AppDatabase.getDatabase(context); // Correct context reference
         }
 
         @Override
-        protected Void doInBackground(Void... voids) {
-            // Delete the table from the database
-            String sqlQuery = "DROP TABLE IF EXISTS " + tableName;
-            SupportSQLiteQuery query = new SimpleSQLiteQuery(sqlQuery);
-            databaseDao.dropTable(query);
-            return null;
+        protected Boolean doInBackground(Void... voids) {
+            try {
+                // Drop the table from the database
+                appDatabase.getOpenHelper().getWritableDatabase().execSQL("DROP TABLE IF EXISTS " + tableName);
+
+                // Delete the table entity metadata from the Room database
+                appDatabase.databaseDao().deleteTable(tableName, databaseName);
+
+                return true;
+            } catch (Exception e) {
+                errorMessage = e.getMessage();
+                e.printStackTrace();
+                return false;
+            }
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            // You might want to update the UI after table deletion
-            // For example, refresh the RecyclerView adapter or show a Toast message
+        protected void onPostExecute(Boolean success) {
+            if (success) {
+                Toast.makeText(activity, "Table deleted successfully", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(activity, "Error deleting table: " + errorMessage, Toast.LENGTH_SHORT).show();
+            }
         }
     }
+
+
 
     private void showAddColumnDialog(String tableName, int columnCount) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -236,6 +252,7 @@ public class TableActivity extends AppCompatActivity implements TableAdapter.OnT
         // Pass relevant data to the TableDetailActivity
         intent.putExtra("databaseName", databaseName);
         intent.putExtra("tableName", clickedTable.getName());
+        startActivity(intent);
         startActivity(intent);
     }
 

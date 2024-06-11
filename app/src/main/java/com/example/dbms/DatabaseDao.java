@@ -35,8 +35,9 @@ public interface DatabaseDao {
     @Insert
     void insertTable(TableEntity table);
 
-    @Query("DELETE FROM tables WHERE databaseName = :databaseName AND name = :tableName")
-    void deleteTable(String databaseName, String tableName);
+    @Query("DELETE FROM tables WHERE name = :tableName AND databaseName = :databaseName")
+    void deleteTable(String tableName, String databaseName);
+
     @RawQuery
     int dropTable(SupportSQLiteQuery query);
 
