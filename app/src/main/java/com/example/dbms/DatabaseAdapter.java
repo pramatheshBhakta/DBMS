@@ -18,11 +18,7 @@ public class DatabaseAdapter extends RecyclerView.Adapter<DatabaseAdapter.Databa
     private OnDeleteClickListener deleteClickListener;
     private OnDatabaseClickListener databaseClickListener;
 
-    public DatabaseAdapter(List<DatabaseCard> databaseList, OnDeleteClickListener onDeleteClickListener) {
-        this.databaseList = databaseList;
-        this.onDeleteClickListener = onDeleteClickListener;
-        this.onDatabaseClickListener = onDatabaseClickListener;
-    }
+
     public DatabaseAdapter(List<DatabaseCard> databaseList, OnDeleteClickListener deleteClickListener, OnDatabaseClickListener databaseClickListener) {
         this.databaseList = databaseList;
         this.deleteClickListener = deleteClickListener;

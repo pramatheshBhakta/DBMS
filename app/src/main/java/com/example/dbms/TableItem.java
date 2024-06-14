@@ -7,9 +7,7 @@ public class TableItem {
         this.name = name;
     }
 
-    public void setColumnCount(int columnCount) {
-        this.columnCount = columnCount;
-    }
+
 
     private String name;
     private int columnCount;

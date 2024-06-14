@@ -1,6 +1,8 @@
 package com.example.dbms;
 
+import android.content.Context;
 import android.content.DialogInterface;
+import android.database.sqlite.SQLiteConstraintException;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -9,6 +11,7 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -78,8 +81,6 @@ public class TableDetailActivity extends AppCompatActivity {
         });
     }
 
-
-
     private void showDeletePositionDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Delete Row");
@@ -143,7 +144,6 @@ public class TableDetailActivity extends AppCompatActivity {
         builder.show();
     }
 
-
     private class LoadTableDataTask extends AsyncTask<Void, Void, Boolean> {
         @Override
         protected Boolean doInBackground(Void... voids) {
@@ -194,18 +194,16 @@ public class TableDetailActivity extends AppCompatActivity {
         tableDataAdapter.setColumnNames(columnNames);
         tableDataAdapter.notifyDataSetChanged();
     }
+
     private void showUpdateDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Update Row");
 
-        // Create a LinearLayout to hold input fields
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
 
-        // Fetch column data types from the database
         List<String> columnDataTypes = appDatabase.getTableColumnTypes(tableName);
 
-        // Create EditText fields for each column
         final List<EditText> editTexts = new ArrayList<>();
         for (int i = 0; i < columnNames.size(); i++) {
             EditText editText = new EditText(this);
@@ -213,7 +211,6 @@ public class TableDetailActivity extends AppCompatActivity {
             layout.addView(editText);
             editTexts.add(editText);
 
-            // Validate data type based on column data types fetched from the database
             final int index = i;
             editText.addTextChangedListener(new TextWatcher() {
                 @Override
@@ -241,7 +238,6 @@ public class TableDetailActivity extends AppCompatActivity {
                     updatedRowData.add(editText.getText().toString());
                 }
 
-                // Validate data types before updating
                 boolean isValid = true;
                 for (int i = 0; i < updatedRowData.size(); i++) {
                     if (!appDatabase.validateDataType(updatedRowData.get(i), columnDataTypes.get(i))) {
@@ -251,9 +247,7 @@ public class TableDetailActivity extends AppCompatActivity {
                 }
 
                 if (isValid) {
-                    // Call the method to handle update operation
-                    new InsertRowTask().execute(updatedRowData);
-
+                    new UpdateRowTask().execute(updatedRowData);
                 } else {
                     Toast.makeText(TableDetailActivity.this, "Please correct the data types", Toast.LENGTH_SHORT).show();
                 }
@@ -270,21 +264,49 @@ public class TableDetailActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // Method to handle the update operation
+    private class UpdateRowTask extends AsyncTask<List<String>, Void, InsertResult> {
+        @Override
+        protected InsertResult doInBackground(List<String>... params) {
+            try {
+                if (params != null && params.length == 1) {
+                    List<String> updatedRowData = params[0];
+                    List<String> foreignKeyInfo = appDatabase.getForeignKeyInfo(tableName); // Assuming you retrieve foreign key info here
 
+                    return appDatabase.upsertRow(tableName, columnNames, appDatabase.getTableColumnTypes(tableName), updatedRowData, foreignKeyInfo);
+                } else {
+                    return new InsertResult(false, "Invalid parameters", false);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new InsertResult(false, "Error updating row", false);
+            }
+        }
+
+        @Override
+        protected void onPostExecute(InsertResult result) {
+            if (result.isSuccess()) {
+                if (result.isRowInserted()) {
+                    Toast.makeText(TableDetailActivity.this, "Row not found,Data inserted successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(TableDetailActivity.this, "Row updated successfully", Toast.LENGTH_SHORT).show();
+                }
+                new LoadTableDataTask().execute();
+            } else {
+                Toast.makeText(TableDetailActivity.this, result.getErrorMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 
     private void showInsertDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Insert Row");
 
-        // Create a LinearLayout to hold input fields
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
 
-        // Fetch column data types from the database
         List<String> columnDataTypes = appDatabase.getTableColumnTypes(tableName);
+        List<String> foreignKeyInfo = appDatabase.getForeignKeyInfo(tableName); // Retrieve foreign key info
 
-        // Create EditText fields for each column
         final List<EditText> editTexts = new ArrayList<>();
         for (int i = 0; i < columnNames.size(); i++) {
             EditText editText = new EditText(this);
@@ -292,7 +314,6 @@ public class TableDetailActivity extends AppCompatActivity {
             layout.addView(editText);
             editTexts.add(editText);
 
-            // Validate data type based on column data types fetched from the database
             final int index = i;
             editText.addTextChangedListener(new TextWatcher() {
                 @Override
@@ -320,17 +341,16 @@ public class TableDetailActivity extends AppCompatActivity {
                     rowData.add(editText.getText().toString());
                 }
 
-                // Validate data types before insertion
                 boolean isValid = true;
                 for (int i = 0; i < rowData.size(); i++) {
-                    if (!validateDataType(rowData.get(i), columnDataTypes.get(i))) {
+                    if (!appDatabase.validateDataType(rowData.get(i), columnDataTypes.get(i))) {
                         editTexts.get(i).setError("Invalid data type");
                         isValid = false;
                     }
                 }
 
                 if (isValid) {
-                    new InsertRowTask().execute(rowData);
+                    new InsertRowTask().execute(rowData, foreignKeyInfo);
                 } else {
                     Toast.makeText(TableDetailActivity.this, "Please correct the data types", Toast.LENGTH_SHORT).show();
                 }
@@ -347,77 +367,36 @@ public class TableDetailActivity extends AppCompatActivity {
         builder.show();
     }
 
-    private boolean validateDataType(String value, String dataType) {
-        // Validate data type based on the expected type
-        // For simplicity, we'll perform basic validation for demonstration purposes
-
-        // Validate INTEGER data type
-        if (dataType.equalsIgnoreCase("INTEGER")) {
-            try {
-                Integer.parseInt(value);
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-        if (dataType.equalsIgnoreCase("REAL")) {
-            try {
-                Float.parseFloat(value);
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-
-        if (dataType.equalsIgnoreCase("BLOB")) {
-            // BLOB data type can be validated by checking if it represents binary data
-            // For simplicity, we'll assume any non-empty value is valid
-            return !value.isEmpty();
-        }
-        // Validate TEXT data type
-        if (dataType.equalsIgnoreCase("TEXT")) {
-            // No validation needed for TEXT type
-            return true;
-        }
-
-
-        // Add more validations for other data types as needed
-
-        // Unknown data type, return false
-        return false;
-    }
-
-
-    private class InsertRowTask extends AsyncTask<List<String>, Void, Boolean> {
+    private class InsertRowTask extends AsyncTask<Object, Void, InsertResult> {
         @Override
-        protected Boolean doInBackground(List<String>... lists) {
+        protected InsertResult doInBackground(Object... params) {
             try {
-                // Perform the upsert operation
-                appDatabase.upsertRow(tableName, columnNames, appDatabase.getTableColumnTypes(tableName), lists[0]);
-                return true; // Operation successful
+                List<String> rowData = (List<String>) params[0];
+                List<String> foreignKeyInfo = (List<String>) params[1];
+                return appDatabase.upsertRow(tableName, columnNames, appDatabase.getTableColumnTypes(tableName), rowData, foreignKeyInfo);
             } catch (Exception e) {
                 e.printStackTrace();
-                return false; // Operation failed
+                return new InsertResult(false, "Error inserting/updating row", false);
             }
         }
 
         @Override
-        protected void onPostExecute(Boolean success) {
-            if (success) {
-                // Check if data was inserted or updated
-                if (appDatabase.isDataInserted()) {
-                    // Data was inserted
+        protected void onPostExecute(InsertResult result) {
+            if (result.isSuccess()) {
+                if (result.isRowInserted()) {
                     Toast.makeText(TableDetailActivity.this, "Row inserted successfully", Toast.LENGTH_SHORT).show();
                 } else {
-                    // Data was updated
-                    Toast.makeText(TableDetailActivity.this, "Row updated successfully", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(TableDetailActivity.this, "Row already Present, updated successfully", Toast.LENGTH_SHORT).show();
                 }
-                // Reload table data to reflect changes
                 new LoadTableDataTask().execute();
             } else {
-                Toast.makeText(TableDetailActivity.this, "Error inserting/updating row", Toast.LENGTH_SHORT).show();
+                Toast.makeText(TableDetailActivity.this, result.getErrorMessage(), Toast.LENGTH_SHORT).show();
             }
         }
     }
+
+
+
+
 
 }

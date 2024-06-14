@@ -15,8 +15,7 @@ public interface DatabaseDao {
     @Insert
     void insert(DatabaseEntity database);
 
-    @Query("DELETE FROM databases")
-    void deleteAllDatabases();
+
 
     @Query("DELETE FROM databases WHERE name = :name")
     void deleteDatabaseByName(String name);
@@ -24,8 +23,7 @@ public interface DatabaseDao {
     @Query("SELECT * FROM databases")
     LiveData<List<DatabaseEntity>> getAllDatabases();
 
-    @Update
-    void updateRow(DatabaseEntity row);
+
     @Query("SELECT * FROM tables WHERE databaseName = :databaseName")
     LiveData<List<TableEntity>> getTablesForDatabase(String databaseName);
 
@@ -38,11 +36,7 @@ public interface DatabaseDao {
     @Query("DELETE FROM tables WHERE name = :tableName AND databaseName = :databaseName")
     void deleteTable(String tableName, String databaseName);
 
-    @RawQuery
-    int dropTable(SupportSQLiteQuery query);
 
-    // DatabaseDao.java
-    // DatabaseDao.java
     @Query("SELECT name FROM sqlite_master WHERE type='table' AND name != 'android_metadata'")
     List<String> getAllTables();
 
